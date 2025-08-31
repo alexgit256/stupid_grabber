@@ -80,3 +80,6 @@ Produces 000.jpg/.txt, 001.*, …
 --delay: Seconds to sleep between posts (default: 1.0)
 
 --dry-run: Print what would be saved without downloading
+
+A small help for an auxilliaru script: <img width="1467" height="253" alt="image" src="https://github.com/user-attachments/assets/904c6c4b-471c-4cbe-9bd5-3ac907a40f48" />
+
