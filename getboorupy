@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+import argparse
+import re
+import sys
+from typing import List, Optional
+
+import requests
+
+
+DANBOORU_POST_ID_RE = re.compile(r"/posts/(\d+)")
+
+
+def extract_post_id(url: str) -> Optional[str]:
+    """
+    Extract the numeric post ID from a Danbooru post URL.
+    Accepts URLs like:
+      https://danbooru.donmai.us/posts/1234567
+      https://danbooru.donmai.us/posts/1234567?some=params
+    """
+    m = DANBOORU_POST_ID_RE.search(url)
+    return m.group(1) if m else None
+
+
+def fetch_tags_by_post_id(post_id: str) -> List[str]:
+    """
+    Fetch tags from Danbooru JSON. Returns a list of tags (space-separated in API).
+    Uses tag_string (all tags) to keep things simple and complete.
+    """
+    api_url = f"https://danbooru.donmai.us/posts/{post_id}.json"
+    r = requests.get(api_url, timeout=15)
+    r.raise_for_status()
+    data = r.json()
+
+    # tag_string contains ALL tags (general, artist, character, copyright, meta)
+    tag_string = data.get("tag_string", "")
+    tags = [t for t in tag_string.strip().split() if t]
+    return tags
+
+
+def format_tags_with_indices(tags: List[str]) -> str:
+    """
+    Format as: tag0, some_tag1, long_hair2
+    (Keep underscores; append the index right after each tag.)
+    """
+    return ", ".join(f"{tag}" for i, tag in enumerate(tags))
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Extract Danbooru tags from a post URL and print them as 'tag0, tag1, ...'."
+    )
+    parser.add_argument("url", help="Danbooru post URL (e.g., https://danbooru.donmai.us/posts/1234567)")
+    parser.add_argument(
+        "--max",
+        type=int,
+        default=None,
+        help="Optionally limit the number of tags printed."
+    )
+    args = parser.parse_args()
+
+    post_id = extract_post_id(args.url)
+    if not post_id:
+        print("Error: Could not find a post ID in the provided URL. It should look like /posts/<number>.", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        tags = fetch_tags_by_post_id(post_id)
+    except requests.HTTPError as e:
+        print(f"HTTP error while fetching tags: {e}", file=sys.stderr)
+        sys.exit(2)
+    except requests.RequestException as e:
+        print(f"Network error while fetching tags: {e}", file=sys.stderr)
+        sys.exit(3)
+
+    if args.max is not None:
+        tags = tags[:args.max]
+
+    output = format_tags_with_indices(tags)
+    print(output)
+
+
+if __name__ == "__main__":
+    main()
